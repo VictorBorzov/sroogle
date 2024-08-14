@@ -14,6 +14,9 @@ use tiny_http::{Header, Response, Server};
 use urlencoding::*;
 use xml::reader::{EventReader, XmlEvent};
 
+#[doc(inline)]
+pub use std;
+
 fn read_text_from_xml<P: AsRef<Path>>(file: P) -> Result<String, Box<dyn std::error::Error>> {
     let file = File::open(file)?;
     let er = EventReader::new(file);
@@ -144,7 +147,8 @@ fn serve(index_path: &str, address: &str) -> Result<(), Box<dyn Error + Send + S
             request.url(),
         );
 
-        let mut html_response = String::from(
+        let query = get_param_value_from_url(decode(&request.url())?.as_ref(), "query");
+        let mut html_response = format!(
             r#"
           <html>
             <header>
@@ -153,13 +157,17 @@ fn serve(index_path: &str, address: &str) -> Result<(), Box<dyn Error + Send + S
             <body>
               <form action="/" method="get">
                 <h1>Query</h1>
-                <input id="query" type="text" name="query"/>
+                <input id="query" type="text" name="query"{value}/>
                 <input type="submit" value="Submit">
               </form>
         "#,
+            value = match &query {
+                Some(query) => format!(" value = \"{query}\""),
+                None => String::new(),
+            }
         );
 
-        if let Some(query) = get_param_value_from_url(decode(&request.url())?.as_ref(), "query") {
+        if let Some(query) = query {
             html_response.push_str("<h1>Results</h1>");
             html_response.push_str("<ul>");
             let chars: Vec<_> = dbg!(query).chars().collect();
